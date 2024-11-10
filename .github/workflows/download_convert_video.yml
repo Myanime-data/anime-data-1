@@ -1,56 +1,36 @@
-name: Download and Convert Video
+name: Download Video with yt-dlp
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'URL de la vidéo à télécharger'
+        required: true
 
 jobs:
-  download_convert:
+  download_video:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Install yt-dlp and ffmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
-        pip install yt-dlp
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-    - name: Read video link
-      id: read_link
-      run: |
-        LINK=$(cat video_link.txt)
-        echo "link=$LINK" >> $GITHUB_ENV
+      - name: Install yt-dlp
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp
 
-    - name: Set timestamp
-      id: set_timestamp
-      run: echo "timestamp=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+      - name: Download video
+        run: |
+          yt-dlp "${{ github.event.inputs.video_url }}" -o "downloaded_video.mp4"
 
-    - name: Download video
-      run: |
-        yt-dlp "$link" -o "original_video_${{ env.timestamp }}.mp4"
-
-    - name: Convert video to 720p
-      run: |
-        ffmpeg -i original_video_${{ env.timestamp }}.mp4 -vf "scale=-1:720" -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k video_720p_${{ env.timestamp }}.mp4
-
-    - name: Convert video to 480p
-      run: |
-        ffmpeg -i original_video_${{ env.timestamp }}.mp4 -vf "scale=-1:480" -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k video_480p_${{ env.timestamp }}.mp4
-
-    - name: Convert video to 360p
-      run: |
-        ffmpeg -i original_video_${{ env.timestamp }}.mp4 -vf "scale=-1:360" -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k video_360p_${{ env.timestamp }}.mp4
-
-    - name: Upload video files as artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: converted-videos-${{ env.timestamp }}
-        path: |
-          video_720p_${{ env.timestamp }}.mp4
-          video_480p_${{ env.timestamp }}.mp4
-          video_360p_${{ env.timestamp }}.mp4
+      - name: Upload downloaded video as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: downloaded_video
+          path: downloaded_video.mp4
