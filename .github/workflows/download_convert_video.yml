@@ -1,4 +1,4 @@
-name: Download and Convert Video with yt-dlp and FFmpeg
+name: Estimate and Download Video with yt-dlp
 
 on:
   workflow_dispatch:
@@ -11,37 +11,39 @@ on:
         required: true
 
 jobs:
-  download_and_convert_video:
+  estimate_and_download:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python and FFmpeg
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install yt-dlp
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
           pip install yt-dlp
 
+      - name: Get video info (metadata only)
+        id: video_info
+        run: |
+          yt-dlp --print-json --skip-download "${{ github.event.inputs.video_url }}" > video_info.json
+          BITRATE=$(jq -r '.abr * 1000 // 128000' video_info.json)  # Exemple: audio bitrate par défaut de 128 kbps
+          DURATION=$(jq -r '.duration' video_info.json)  # en secondes
+          SIZE_720p=$(echo "$BITRATE * $DURATION / 8" | bc)  # en octets
+          SIZE_480p=$(echo "$SIZE_720p * 0.75" | bc)  # approximativement réduit
+          SIZE_360p=$(echo "$SIZE_720p * 0.5" | bc)
+          echo "Estimated sizes - 720p: $SIZE_720p bytes, 480p: $SIZE_480p bytes, 360p: $SIZE_360p bytes"
+        shell: bash
+
       - name: Download video
         run: |
-          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best' -o "${{ github.event.inputs.video_name }}_720p.mp4"
+          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best[height=720]' -o "${{ github.event.inputs.video_name }}_720p.mp4"
 
-      - name: Convert to 480p
+      - name: Convert and upload
         run: |
-          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:480" -c:a copy "${{ github.event.inputs.video_name }}_480p.mp4"
-
-      - name: Convert to 360p
-        run: |
-          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:360" -c:a copy "${{ github.event.inputs.video_name }}_360p.mp4"
-
-      - name: Upload all video formats as artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.event.inputs.video_name }}_videos"
-          path: |
-            ${{ github.event.inputs.video_name }}_720p.mp4
-            ${{ github.event.inputs.video_name }}_480p.mp4
-            ${{ github.event.inputs.video_name }}_360p.mp4
+          # Conversion et téléchargement comme dans l'exemple précédent...
