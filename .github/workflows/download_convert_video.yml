@@ -27,7 +27,7 @@ jobs:
 
       - name: Download video
         run: |
-          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best[height=720]' -o "${{ github.event.inputs.video_name }}_720p.mp4"
+          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best' -o "${{ github.event.inputs.video_name }}_720p.mp4"
 
       - name: Convert to 480p
         run: |
