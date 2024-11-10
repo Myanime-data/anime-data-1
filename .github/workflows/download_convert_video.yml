@@ -6,6 +6,9 @@ on:
       video_url:
         description: 'URL de la vidéo à télécharger'
         required: true
+      video_name:
+        description: 'Nom du fichier vidéo (sans extension)'
+        required: true
 
 jobs:
   download_video:
@@ -27,10 +30,10 @@ jobs:
 
       - name: Download video
         run: |
-          yt-dlp "${{ github.event.inputs.video_url }}" -o "downloaded_video.mp4"
+          yt-dlp "${{ github.event.inputs.video_url }}" -o "${{ github.event.inputs.video_name }}.mp4"
 
       - name: Upload downloaded video as artifact
         uses: actions/upload-artifact@v3
         with:
-          name: downloaded_video
-          path: downloaded_video.mp4
+          name: ${{ github.event.inputs.video_name }}
+          path: "${{ github.event.inputs.video_name }}.mp4"
