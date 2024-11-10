@@ -1,4 +1,4 @@
-name: Download Video with yt-dlp
+name: Download and Convert Video with yt-dlp and FFmpeg
 
 on:
   workflow_dispatch:
@@ -11,29 +11,37 @@ on:
         required: true
 
 jobs:
-  download_video:
+  download_and_convert_video:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install yt-dlp
+      - name: Set up Python and FFmpeg
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
           pip install yt-dlp
 
       - name: Download video
         run: |
-          yt-dlp "${{ github.event.inputs.video_url }}" -o "${{ github.event.inputs.video_name }}.mp4"
+          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best[height=720]' -o "${{ github.event.inputs.video_name }}_720p.mp4"
 
-      - name: Upload downloaded video as artifact
+      - name: Convert to 480p
+        run: |
+          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:480" -c:a copy "${{ github.event.inputs.video_name }}_480p.mp4"
+
+      - name: Convert to 360p
+        run: |
+          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:360" -c:a copy "${{ github.event.inputs.video_name }}_360p.mp4"
+
+      - name: Upload all video formats as artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ github.event.inputs.video_name }}
-          path: "${{ github.event.inputs.video_name }}.mp4"
+          name: "${{ github.event.inputs.video_name }}_videos"
+          path: |
+            ${{ github.event.inputs.video_name }}_720p.mp4
+            ${{ github.event.inputs.video_name }}_480p.mp4
+            ${{ github.event.inputs.video_name }}_360p.mp4
