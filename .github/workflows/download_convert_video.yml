@@ -1,47 +1,37 @@
-name: Download and Convert Video with yt-dlp and FFmpeg
+name: Fetch Anime Synopses and Translate
 
 on:
   workflow_dispatch:
     inputs:
-      video_url:
-        description: 'URL de la vidéo à télécharger'
+      start_id:
+        description: 'ID de début'
         required: true
-      video_name:
-        description: 'Nom du fichier vidéo (sans extension)'
+        default: '1'
+      end_id:
+        description: 'ID de fin'
         required: true
+        default: '10'
 
 jobs:
-  download_and_convert_video:
+  fetch_and_translate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python and FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install --upgrade pip
-          pip install yt-dlp
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
 
-      - name: Download video
-        run: |
-          yt-dlp "${{ github.event.inputs.video_url }}" -f 'best' -o "${{ github.event.inputs.video_name }}_720p.mp4"
+    - name: Install dependencies
+      run: |
+        pip install requests googletrans==4.0.0-rc1  # Assurez-vous d'installer googletrans
 
-      - name: Convert to 480p
-        run: |
-          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:480" -c:a copy "${{ github.event.inputs.video_name }}_480p.mp4"
-
-      - name: Convert to 360p
-        run: |
-          ffmpeg -i "${{ github.event.inputs.video_name }}_720p.mp4" -vf "scale=-2:360" -c:a copy "${{ github.event.inputs.video_name }}_360p.mp4"
-
-      - name: Upload all video formats as artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.event.inputs.video_name }}_videos"
-          path: |
-            ${{ github.event.inputs.video_name }}_720p.mp4
-            ${{ github.event.inputs.video_name }}_480p.mp4
-            ${{ github.event.inputs.video_name }}_360p.mp4
+    - name: Fetch and Translate Anime Synopses
+      env:
+        START_ID: ${{ github.event.inputs.start_id }}
+        END_ID: ${{ github.event.inputs.end_id }}
+      run: |
+        python fetch_translate_anime.py
